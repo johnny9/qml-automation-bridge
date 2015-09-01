@@ -1,10 +1,9 @@
 #ifndef QJSONBRIDGE_H
 #define QJSONBRIDGE_H
-#include "qhttpserverfwd.h"
+#include <qhttpserverfwd.h>
 
 #include <QObject>
 #include <QGuiApplication>
-#include <QQmlApplicationEngine>
 #include <QByteArray>
 #include <QVariantMap>
 
