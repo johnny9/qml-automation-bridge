@@ -12,7 +12,8 @@ int main(int argc, char *argv[])
     QGuiApplication app(argc, argv);
 
     QQuickView view;
-    view.setSource(QUrl(QStringLiteral("qml/jsonbrsge2/main.qml")));
+    view.setSource(QUrl(QStringLiteral("qml/main.qml")));
     bridge = new QJsonBridge(view.rootObject(), &app);
+    view.show();
     return app.exec();
 }

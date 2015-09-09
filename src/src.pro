@@ -6,13 +6,14 @@ QT += network
 
 LIBS += -lqhttpserver
 
-CONFIG += dll debug_and_release
-
-HEADERS = qjsonbridge.h
+HEADERS = *.h
 SOURCES = *.cpp
 
 OBJECTS_DIR = ../build
 MOC_DIR = ../build
 DESTDIR = ../lib
 
-
+target.path = /usr/local/lib
+headers.path = /usr/local/include
+headers.files = $$HEADERS
+INSTALLS += target headers

@@ -28,3 +28,5 @@ Makefile*
 *.qmlproject.user.*
 lib
 build
+*.swp
+example/example
