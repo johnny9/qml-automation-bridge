@@ -22,7 +22,7 @@ private:
     QByteArray toJson();
     QObject* m_root;
     QGuiApplication* m_app;
-
+    QPointF findTextLocation(QString text);
     void click(QPointF position);
 };
 

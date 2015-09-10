@@ -32,7 +32,9 @@ void QJsonBridge::handleRequest(QHttpRequest *req, QHttpResponse *resp) {
         click(position);
     }
 
-    resp->setHeader("Content-Type", "text/html");
+    findTextLocation("Hello World");
+
+    resp->setHeader("Content-Type", "application/json");
     resp->writeHead(200);
     resp->end(toJson());
 }
@@ -44,6 +46,25 @@ QByteArray QJsonBridge::toJson() {
     QByteArray output = document.toJson(QJsonDocument::Indented);
 
     return output;
+}
+
+QPointF QJsonBridge::findTextLocation(QString text) {
+    QList<QObject*> stack;
+    stack.append(m_root);
+    while (!stack.isEmpty()) {
+        QObject* item = stack.takeLast();
+        const QList<QObject*> objList = item->children();
+        QList<QObject*>::const_iterator it; 
+        for (it = objList.begin(); it != objList.end(); it++) {
+            stack.append(*it);
+        }
+
+        QVariantMap properties;
+        writeProperties(properties, item);
+        if (properties["text"] == text) {
+            qDebug() << "FOUND IT";
+        }
+    }
 }
 
 void QJsonBridge::write(QVariantMap& parent, QObject* object) {
