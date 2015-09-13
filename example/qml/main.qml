@@ -1,21 +1,33 @@
-import QtQuick 2.0
+import QtQuick.Controls 1.1
+import QtQuick 2.2
 
-Rectangle {
-    width: 360
-    height: 360
-    Text {
-        id: helloText
-        text: qsTr("Hello World")
-        anchors.centerIn: parent
+StackView {
+    width: 100
+    height: 100
+
+    id: stack
+    initialItem: view
+
+    Component {
+        id: view
+
+        MouseArea {
+            objectName: "view1"
+            Text {
+                text: "View 1" 
+                anchors.centerIn: parent
+            }
+            onClicked: stack.push(view2)
+        }
     }
-    MouseArea {
-        anchors.rightMargin: 0
-        anchors.bottomMargin: 0
-        anchors.leftMargin: 0
-        anchors.topMargin: 0
-        anchors.fill: parent
-        onClicked: {
-            helloText.text = "CLICKED"
+   Component {
+        id: view2
+        MouseArea {
+            Text {
+                text: "View 2" 
+                anchors.centerIn: parent
+            }
+            onClicked: stack.push(view)
         }
     }
 }

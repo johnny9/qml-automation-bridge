@@ -10,29 +10,53 @@
 #include <QMouseEvent>
 #include <QObject>
 #include <QWindow>
+#include <QHash>
+#include <QString>
+#include <QMetaObject>
 
 
 QJsonBridge::QJsonBridge(QObject* root, QGuiApplication* app) {
     m_app = app;
     m_root = root;
-
-    QHttpServer *server = new QHttpServer(this);
+    server = new QHttpServer(this);
     connect(server, SIGNAL(newRequest(QHttpRequest*, QHttpResponse*)),
             this, SLOT(handleRequest(QHttpRequest*, QHttpResponse*)));
+}
 
+void QJsonBridge::startServer() {
     server->listen(QHostAddress::Any, 8080);
 }
 
 
+QVariantMap parseQuery(QString query) {
+    QStringList pairs = query.split("&", QString::SkipEmptyParts);
+    QVariantMap hash;
+    foreach (QString str, pairs)
+    {
+        QString key = str.split("=")[0];
+        QString value = str.split("=")[1];
+        hash[key] = value;
+    }
+    return hash;
+}
+
 void QJsonBridge::handleRequest(QHttpRequest *req, QHttpResponse *resp) {
-    QRegExp exp("^/click/([a-z]+)$");
+    QRegExp exp("^/([a-z]+)$");
     if( exp.indexIn(req->path()) != -1 ) {
         QPointF position(150,150);
-        qDebug() << "posting event";
-        click(position);
-    }
+        qDebug() << "posting event" << req->path();
 
-    findTextLocation("Hello World");
+        bool success;
+        QVariantMap query = parseQuery(req->url().query());
+        QString method = req->path();
+        method = method.remove(0, 1);
+
+        QMetaObject::invokeMethod(this, method.toLatin1().data(), Qt::DirectConnection,
+                                  Q_RETURN_ARG(bool, success),
+                                  Q_ARG(QVariantMap, query));
+
+
+    }
 
     resp->setHeader("Content-Type", "application/json");
     resp->writeHead(200);
@@ -48,22 +72,51 @@ QByteArray QJsonBridge::toJson() {
     return output;
 }
 
-QPointF QJsonBridge::findTextLocation(QString text) {
+bool QJsonBridge::click(QVariantMap selector) {
+    qDebug() << "INVOKED!!" << selector;
+    QObject* item = findQObject(selector);
+    clickObject(item);
+    return true;
+}
+
+bool matchesAll(QVariantMap selector, QVariantMap properties) {
+    foreach(QString key, selector.keys()) {
+        if (selector[key] != properties[key]) {
+            return false;
+        }
+    }
+    return true;
+}
+
+QObject* QJsonBridge::findQObject(QVariantMap selector) {
     QList<QObject*> stack;
     stack.append(m_root);
     while (!stack.isEmpty()) {
         QObject* item = stack.takeLast();
         const QList<QObject*> objList = item->children();
-        QList<QObject*>::const_iterator it; 
-        for (it = objList.begin(); it != objList.end(); it++) {
-            stack.append(*it);
-        }
 
         QVariantMap properties;
         writeProperties(properties, item);
-        if (properties["text"] == text) {
-            qDebug() << "FOUND IT";
+        if (matchesAll(selector, properties)) {
+            return item;
         }
+
+        QList<QObject*>::const_iterator it;
+        for (it = objList.begin(); it != objList.end(); it++) {
+            stack.append(*it);
+        }
+    }
+    return NULL;
+}
+
+void QJsonBridge::clickObject(QObject* object) {
+    if (object != NULL) {
+        QVariantMap properties;
+        writeProperties(properties, object);
+        QPointF location;
+        location.setX(properties["x"].toFloat() + properties["width"].toFloat() / 2);
+        location.setY(properties["y"].toFloat() + properties["height"].toFloat() / 2);
+        click(location);
     }
 }
 

@@ -14,6 +14,7 @@ int main(int argc, char *argv[])
     QQuickView view;
     view.setSource(QUrl(QStringLiteral("qml/main.qml")));
     bridge = new QJsonBridge(view.rootObject(), &app);
+    bridge->startServer();
     view.show();
     return app.exec();
 }

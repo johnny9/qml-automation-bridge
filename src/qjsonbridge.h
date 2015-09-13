@@ -12,6 +12,11 @@ class QJsonBridge : public QObject {
 
 public:
     QJsonBridge(QObject* root, QGuiApplication* app);
+    QObject* findQObject(QVariantMap selector);
+    void startServer();
+
+public slots:
+    bool click(QVariantMap selector);
 
 private slots:
     void handleRequest(QHttpRequest *req, QHttpResponse *resp);
@@ -19,11 +24,12 @@ private slots:
 private:
     void writeProperties(QVariantMap& json, QObject* object);
     void write(QVariantMap& json, QObject* object);
+    void clickObject(QObject* object);
+    void click(QPointF position);
     QByteArray toJson();
     QObject* m_root;
     QGuiApplication* m_app;
-    QPointF findTextLocation(QString text);
-    void click(QPointF position);
+    QHttpServer *server;
 };
 
 #endif // QJSONBRIDGE_H
