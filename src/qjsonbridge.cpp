@@ -35,32 +35,44 @@ QVariantMap parseQuery(QString query) {
     {
         QString key = str.split("=")[0];
         QString value = str.split("=")[1];
+        value.replace("+", " ");
         hash[key] = value;
     }
     return hash;
 }
 
 void QJsonBridge::handleRequest(QHttpRequest *req, QHttpResponse *resp) {
-    QRegExp exp("^/([a-z]+)$");
+    QRegExp exp("^/([a-zA-Z]+)$");
     if( exp.indexIn(req->path()) != -1 ) {
         QPointF position(150,150);
-        qDebug() << "posting event" << req->path();
 
         bool success;
         QVariantMap query = parseQuery(req->url().query());
         QString method = req->path();
         method = method.remove(0, 1);
+        QVariantMap resultItem;
 
         QMetaObject::invokeMethod(this, method.toLatin1().data(), Qt::DirectConnection,
                                   Q_RETURN_ARG(bool, success),
-                                  Q_ARG(QVariantMap, query));
+                                  Q_ARG(QVariantMap, query),
+                                  Q_ARG(QVariantMap&, resultItem));
 
 
+        if (success) {
+            resp->setHeader("Content-Type", "application/json");
+            resp->writeHead(200);
+            QJsonDocument document(QJsonObject::fromVariantMap(resultItem));
+            resp->end(document.toJson(QJsonDocument::Indented));
+        } else {
+            resp->writeHead(400);
+            resp->end();
+        }
+    } else {
+        resp->setHeader("Content-Type", "application/json");
+        resp->writeHead(200);
+        resp->end(toJson());
+        qDebug() << "bad function";
     }
-
-    resp->setHeader("Content-Type", "application/json");
-    resp->writeHead(200);
-    resp->end(toJson());
 }
 
 QByteArray QJsonBridge::toJson() {
@@ -72,11 +84,28 @@ QByteArray QJsonBridge::toJson() {
     return output;
 }
 
-bool QJsonBridge::click(QVariantMap selector) {
-    qDebug() << "INVOKED!!" << selector;
-    QObject* item = findQObject(selector);
+bool QJsonBridge::click(QVariantMap selector, QVariantMap& resultItem) {
+    //Only click objects that are vidible
+    selector["visible"] = true;
+    QObject* item = findQObject(selector, m_root);
+    if (item == NULL) {
+        return false;
+    }
+
     clickObject(item);
+    write(resultItem, item);
     return true;
+}
+
+bool QJsonBridge::findItem(QVariantMap selector, QVariantMap& resultItem) {
+   selector["visible"] = true;
+   QObject* item = findQObject(selector, m_root);
+   if (item == NULL) {
+       return false;
+   }
+
+   write(resultItem, item);
+   return true;
 }
 
 bool matchesAll(QVariantMap selector, QVariantMap properties) {
@@ -89,8 +118,7 @@ bool matchesAll(QVariantMap selector, QVariantMap properties) {
 }
 
 QObject* QJsonBridge::findQObject(QVariantMap selector) {
-    QList<QObject*> stack;
-    stack.append(m_root);
+    QList<QObject*> stack(m_root->children());
     while (!stack.isEmpty()) {
         QObject* item = stack.takeLast();
         const QList<QObject*> objList = item->children();
@@ -98,6 +126,7 @@ QObject* QJsonBridge::findQObject(QVariantMap selector) {
         QVariantMap properties;
         writeProperties(properties, item);
         if (matchesAll(selector, properties)) {
+            stack.clear();
             return item;
         }
 
@@ -106,6 +135,26 @@ QObject* QJsonBridge::findQObject(QVariantMap selector) {
             stack.append(*it);
         }
     }
+    stack.clear();
+    return NULL;
+}
+
+QObject* QJsonBridge::findQObject(QVariantMap selector, QObject* object) {
+    const QList<QObject*> objList = object->children();
+    QList<QObject*>::const_iterator it;
+    for (it = objList.begin(); it != objList.end(); it++) {
+        QObject* result = findQObject(selector, *it);
+        if (result != NULL) {
+            return result;
+        }
+    }
+   
+    QVariantMap properties;
+    writeProperties(properties, object);
+    if (matchesAll(selector, properties)) {
+        return object;
+    }
+
     return NULL;
 }
 
@@ -130,7 +179,16 @@ void QJsonBridge::write(QVariantMap& parent, QObject* object) {
     for (it = objList.begin(); it != objList.end(); it++) {
         write(child, *it);
     }
-    parent[className] = child;
+
+    if (parent.contains(className)) {
+        QVariant i = "1";
+        while(parent.contains(className + i.toString())) {
+            i = i.toInt() + 1;
+        }
+        parent[className+i.toString()] = child;
+    } else {
+        parent[className] = child;
+    }
 }
 
 void QJsonBridge::writeProperties(QVariantMap& json, QObject* object) {
