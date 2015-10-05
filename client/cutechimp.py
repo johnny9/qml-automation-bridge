@@ -1,6 +1,6 @@
 import json
-import http.client
-import urllib.parse
+import httplib
+import urllib
 
 class CuteChimp:
 
@@ -9,8 +9,8 @@ class CuteChimp:
         self.port = port
 
     def invoke(self, functionName, query):
-        client = http.client.HTTPConnection(self.ip+":"+self.port)
-        params = urllib.parse.urlencode(query)
+        client = httplib.HTTPConnection(self.ip+":"+self.port)
+        params = urllib.urlencode(query)
         client.request("POST", "/"+functionName+"?"+params)
         response = client.getresponse()
         return response
@@ -24,7 +24,7 @@ class CuteChimp:
             return False
 
     def click(self, query):
-        params = urllib.parse.urlencode(query)
+        params = urllib.urlencode(query)
         response = self.invoke("click", query)
         if response.status == 200:
             return True
